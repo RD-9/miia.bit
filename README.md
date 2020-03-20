@@ -25,10 +25,10 @@ All the curriculum is available in the MiiCode app in the curriculum tab. This d
 ## Extensions kits
 The MiiA.bit robot allows for a range of extensions which can be found on www.rd-9.co.za. As mentioned these instructions are present in the Assembly instructions folder. These kits are:
 
-### MiiExpansion pack
+#### MiiExpansion pack
 This pack contains different linkages and fasteners to add to the functionality of the robot. This is compatible with all the robots designed by RD9 Solutions. 
 
-### MiiGripper pack
+#### MiiGripper pack
 The MiiGripper pack is based on the amazing open-source mearm robotic kit (https://mearm.com/). This extends the functionality of your MiiA.bit gripper by using the servo motor in your kit to create an arm capable of grasping and holding things.
 
  Note: This pack is currently only compatible with the MiiA.bit robot. 
