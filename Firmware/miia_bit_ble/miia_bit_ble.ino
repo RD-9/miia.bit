@@ -1,6 +1,6 @@
 /* MiiCode Firmware for MiiA.bit Robot
- *  Version 1.0
- *  Date: October 2019
+ *  Version 1.2
+ *  Date: May 2020
  *  Author: Tyrone van Balla
  *  Company: RD9 Solutions
  */
@@ -34,10 +34,10 @@
 #define motor_b_forward_pin 6
 #define motor_b_reverse_pin 9
 #define motor_b_pwm 10
-#define motor_stand_by 5
+#define motor_stand_by MOSI
 
 // buzzer
-#define buzzer_pin MISO
+#define buzzer_pin 5
 
 // push button
 #define push_button_pin A7
@@ -71,7 +71,7 @@ int dist;
 // variables for creating delay in sending data
 unsigned long previous_timestamp = 0;
 unsigned long current_timestamp;
-const long time_delay = 2000;
+const long time_delay = 1250; // milliseconds
 
 // create objects
 
@@ -110,8 +110,7 @@ void setup()
 
   // initialize serial communications at specified baud rate
   mySerial.begin(baud_rate);
-  Serial.begin(baud_rate);
-
+  
   // setup complete
 }
 
@@ -138,13 +137,13 @@ void loop()
     set_servo_position(servo_arm_pin, servo_pos);
 }
 
-// board initialization - ok!: led blue flash twice, then green, then off
+// board initialization - ok!: led red flash, then blue, then blue, then off
 void initialization_ok()
 {
-  analogWrite(led_r_pin, 255);
+  analogWrite(led_r_pin, 0);
   analogWrite(led_g_pin, 255);
-  analogWrite(led_b_pin, 0);
-  delay(1000);
+  analogWrite(led_b_pin, 255);
+  delay(500);
   analogWrite(led_r_pin, 255);
   analogWrite(led_g_pin, 255);
   analogWrite(led_b_pin, 255);
@@ -152,11 +151,15 @@ void initialization_ok()
   analogWrite(led_r_pin, 255);
   analogWrite(led_g_pin, 255);
   analogWrite(led_b_pin, 0);
-  delay(1000);
+  delay(500);
   analogWrite(led_r_pin, 255);
-  analogWrite(led_g_pin, 0);
+  analogWrite(led_g_pin, 255);
   analogWrite(led_b_pin, 255);
-  delay(2000);
+  delay(500);
+  analogWrite(led_r_pin, 255);
+  analogWrite(led_g_pin, 255);
+  analogWrite(led_b_pin, 0);
+  delay(500);
   analogWrite(led_r_pin, 255);
   analogWrite(led_g_pin, 255);
   analogWrite(led_b_pin, 255);
@@ -184,7 +187,8 @@ void receive_data_from_miicode(void)
 {
   if (mySerial.available() > 0)
   {
-    if ((prev_byte == 202 or prev_byte == 203) and cntr == 0)
+    // catch any motor related commands as these commands consist of three parts
+    if ((prev_byte == 202 or prev_byte == 203 or prev_byte == 235) and cntr == 0)
     {      
       // current byte will be the direction
       motor_direction = mySerial.read();
@@ -265,6 +269,32 @@ void outputs_set()
       current_byte = current_byte * 2.55;
     }
     
+    motor_b.drive(current_byte);
+    cntr = 0;
+  }
+
+  // Motor A and B (simultaneous control)
+  if (prev_byte == 235) 
+  {
+    if (current_byte == 0)
+    {
+      // stop
+      motor_a.brake();
+      motor_b.brake();
+      cntr = 0;
+    }
+    
+    if (motor_direction == 0)
+    {
+      // reverse direction
+      current_byte = current_byte * -1 * 2.55;
+    }
+    else
+    {
+      current_byte = current_byte * 2.55;
+    }
+
+    motor_a.drive(current_byte);
     motor_b.drive(current_byte);
     cntr = 0;
   }
