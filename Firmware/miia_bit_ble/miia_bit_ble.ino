@@ -1,6 +1,6 @@
-/* MiiCode Firmware for MiiA.bit Robot
- *  Version 1.2
- *  Date: May 2020
+/* LoFi-compatible Firmware for MiiA.bit Robot
+ *  Version 1.2.1
+ *  Date: April 2021
  *  Author: Tyrone van Balla
  *  Company: RD9 Solutions
  */
@@ -44,6 +44,18 @@
 
 // constants
 
+// commands
+#define i_uss
+#define i_button
+
+#define o_buzzer 201
+#define o_motor_1 202
+#define o_motor_2 203
+#define o_servo 208 // servo, output_1
+#define o_led_r 204 // output_1
+#define o_led_g 205 // output_2
+#define o_led_b 206 // output_3
+
 // these constants are used to allow you to make your motor configuration 
 // line up with function names like forward.  Value can be 1 or -1
 const int motor_offset_a = 1;
@@ -66,7 +78,7 @@ int prev_byte = 0;
 int input_button = 0;
 int cntr = 0;
 int motor_direction = 0;
-int dist;
+int dist = 0;
 
 // variables for creating delay in sending data
 unsigned long previous_timestamp = 0;
@@ -92,6 +104,9 @@ void outputs_set(void);
 void send_data_to_miicode(void);
 void servo_off(int servo_pin);
 void set_servo_position(int servo_pin, int pos);
+void receive_data_from_lofi(void);
+void stop_all(void);
+void send_data_to_lofi(void);
 
 void setup()
 {
@@ -117,7 +132,8 @@ void setup()
 void loop()
 {
     // receive data from the app
-    receive_data_from_miicode();
+    //receive_data_from_miicode();
+    receive_data_from_lofi();
     
     // hold servo
     set_servo_position(servo_arm_pin, servo_pos);
@@ -130,14 +146,15 @@ void loop()
       previous_timestamp = current_timestamp;
       
       // send data
-      send_data_to_miicode();
+      //send_data_to_miicode();
+      send_data_to_lofi();
     }
 
     // hold servo
     set_servo_position(servo_arm_pin, servo_pos);
 }
 
-// board initialization - ok!: led red flash, then blue, then blue, then off
+// board initialization - ok!: led red flash, then green, then green, then off
 void initialization_ok()
 {
   analogWrite(led_r_pin, 0);
@@ -149,16 +166,16 @@ void initialization_ok()
   analogWrite(led_b_pin, 255);
   delay(500);
   analogWrite(led_r_pin, 255);
-  analogWrite(led_g_pin, 255);
-  analogWrite(led_b_pin, 0);
+  analogWrite(led_g_pin, 0);
+  analogWrite(led_b_pin, 255);
   delay(500);
   analogWrite(led_r_pin, 255);
   analogWrite(led_g_pin, 255);
   analogWrite(led_b_pin, 255);
   delay(500);
   analogWrite(led_r_pin, 255);
-  analogWrite(led_g_pin, 255);
-  analogWrite(led_b_pin, 0);
+  analogWrite(led_g_pin, 0);
+  analogWrite(led_b_pin, 255);
   delay(500);
   analogWrite(led_r_pin, 255);
   analogWrite(led_g_pin, 255);
@@ -181,6 +198,19 @@ long read_distance_uss()
   
   dist = distance;
 }
+
+
+// receive data from Lofi Application via Bluetooth
+void receive_data_from_lofi(void)
+{
+  if (mySerial.available() > 0)
+  {
+      current_byte = mySerial.read();
+      outputs_set();
+      prev_byte = current_byte;
+  } 
+}
+
 
 // receives data from the miicode application via Bluetooth
 void receive_data_from_miicode(void)
@@ -208,7 +238,7 @@ void receive_data_from_miicode(void)
 void outputs_set()
 {   
   // buzzer on/off set tone
-  if (prev_byte == 201)
+  if (prev_byte == o_buzzer)
   {
     // turn the buzzer on
     if (current_byte == 1)
@@ -224,7 +254,7 @@ void outputs_set()
   }
 
   // Motor A
-  if (prev_byte == 202)  
+  if (prev_byte == o_motor_1)  
   {
     // prev_byte is the motor
     // current_byte is the speed
@@ -235,15 +265,14 @@ void outputs_set()
       motor_a.brake();
       cntr = 0;
     }
-    
-    if (motor_direction == 0)
-    {
-      // reverse direction
-      current_byte = current_byte * -1 *2.55;
-    }
-        else
+
+    else if (current_byte <= 100)
     {
       current_byte = current_byte * 2.55;
+    }
+    else
+    {
+      current_byte = (current_byte-100) * -1 *2.55;
     }
     
     motor_a.drive(current_byte);
@@ -251,26 +280,29 @@ void outputs_set()
   }
 
   // Motor B
-  if (prev_byte == 203) 
+  if (prev_byte == o_motor_2) 
   {
+    // prev_byte is the motor
+    // current_byte is the speed
+    // motor_direction is the direction
     if (current_byte == 0)
     {
       // stop
       motor_b.brake();
       cntr = 0;
     }
-    if (motor_direction == 0)
-    {
-      // reverse direction
-      current_byte = current_byte * -1 * 2.55;
-    }
-    else
+  
+    else if (current_byte <= 100)
     {
       current_byte = current_byte * 2.55;
     }
+    else
+    {
+      current_byte = (current_byte-100) * -1 *2.55;
+    }
     
     motor_b.drive(current_byte);
-    cntr = 0;
+    
   }
 
   // Motor A and B (simultaneous control)
@@ -300,29 +332,63 @@ void outputs_set()
   }
 
   // RGB Output
-  if (prev_byte == 204)
+  if (prev_byte == o_led_r)
   {
       analogWrite(led_r_pin, 255-(current_byte*2.55));
   }
   // rGb output
-  if (prev_byte == 205)
+  if (prev_byte == o_led_g)
   {
       analogWrite(led_g_pin, 255-(current_byte*2.55));
   }
   // rgB output
-  if (prev_byte == 206)
+  if (prev_byte == o_led_b)
   {
       analogWrite(led_b_pin, 255-(current_byte*2.55));
   }
 
   // Servo Motor Output
-  if (prev_byte == 208)
+  if (prev_byte == o_servo)
   {
       // get new servo pos
       servo_pos = current_byte;
       // set new servo pos
       set_servo_position(servo_arm_pin, current_byte);
   }
+
+    if (prev_byte == 213 && current_byte == 99) {
+    stop_all();
+    }
+  
+}
+
+// sends data to the LoFi application via Bluetooth
+void send_data_to_lofi(void)
+{
+
+    if (analogRead(push_button_pin) > 512){
+    input_button = 0;
+  }
+  else{
+    input_button = 1;
+  }
+  
+//[224, 115, 2, 225, 102, 4, 226, 107, 5, 227, 63, 6]
+  mySerial.write(224);
+  mySerial.write(input_button);
+  mySerial.write(225);
+  mySerial.write(byte(0));
+  mySerial.write(226);
+  mySerial.write(byte(0));
+  mySerial.write(227);
+  mySerial.write(byte(0));
+
+  read_distance_uss();
+
+  mySerial.write(240);
+  mySerial.write(byte(dist));
+  // last byte "i" character as a delimiter for BT2.0 on Android
+  mySerial.write(105);
 }
 
 // sends data to the miicode application via Bluetooth
@@ -418,6 +484,17 @@ void set_servo_position(int servo_pin, int pos)
     }
   }
   current_pos = pos_setting;
+}
+
+void stop_all(void) 
+{
+  set_servo_position(servo_arm_pin, servo_calibration_pos);
+  motor_a.brake();
+  motor_b.brake();
+  noTone(buzzer_pin);
+  analogWrite(led_r_pin, 255);
+  analogWrite(led_g_pin, 255);
+  analogWrite(led_b_pin, 255);
 }
 
 //end
